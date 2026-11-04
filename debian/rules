@@ -1,0 +1,48 @@
+#!/usr/bin/make -f
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Blueberry Pie OS Authors
+
+include /usr/share/pietoolchain/rules.mk
+
+S       := $(OBJ)/pcre2-10.42
+SOURCES := pcre2_auto_possess pcre2_chartables pcre2_compile pcre2_config pcre2_context \
+	pcre2_convert pcre2_dfa_match pcre2_error pcre2_extuni pcre2_find_bracket pcre2_jit_compile \
+	pcre2_maketables pcre2_match pcre2_match_data pcre2_newline pcre2_ord2utf pcre2_pattern_info \
+	pcre2_script_run pcre2_serialize pcre2_string_utils pcre2_study pcre2_substitute \
+	pcre2_substring pcre2_tables pcre2_ucd pcre2_valid_utf pcre2_xclass
+OBJS    := $(patsubst %,$(OBJ)/o/%.o,$(SOURCES))
+FLAGS   := $(BASE_CFLAGS) -fvisibility=hidden -DHAVE_CONFIG_H -DPCRE2_CODE_UNIT_WIDTH=8 \
+	-I$(SRCROOT)/debian -I$(S)/src
+LIBPCRE2 := $(OBJ)/libpcre2-8.0.dylib
+LIBPOSIX := $(OBJ)/libpcre2-posix.3.dylib
+
+all: $(LIBPCRE2) $(LIBPOSIX)
+
+$(S)/.unpacked: $(SRCROOT)/pcre2-10.42.tar.bz2
+	rm -rf $(S)
+	mkdir -p $(OBJ)
+	tar -C $(OBJ) -jxf $(SRCROOT)/pcre2-10.42.tar.bz2
+	cp $(S)/src/pcre2.h.generic $(S)/src/pcre2.h
+	cp $(S)/src/pcre2_chartables.c.dist $(S)/src/pcre2_chartables.c
+	touch $@
+
+$(OBJ)/o/%.o: $(S)/.unpacked
+	@mkdir -p $(dir $@)
+	$(CC) $(FLAGS) -c $(S)/src/$*.c -o $@
+
+$(LIBPCRE2): $(OBJS)
+	$(CC) $(BASE_LDFLAGS) -dynamiclib -install_name /usr/lib/libpcre2-8.0.dylib \
+		-compatibility_version 12 -current_version 12.2 $(OBJS) -o $@
+
+$(LIBPOSIX): $(OBJ)/o/pcre2posix.o $(LIBPCRE2)
+	$(CC) $(BASE_LDFLAGS) -dynamiclib -install_name /usr/lib/libpcre2-posix.3.dylib \
+		-compatibility_version 4 -current_version 4.4 $(OBJ)/o/pcre2posix.o $(LIBPCRE2) -o $@
+
+install: all
+	install -d $(ROOT)/usr/lib $(ROOT)/usr/local/include
+	install -m 755 $(LIBPCRE2) $(LIBPOSIX) $(ROOT)/usr/lib/
+	ln -sf libpcre2-8.0.dylib $(ROOT)/usr/lib/libpcre2-8.dylib
+	ln -sf libpcre2-posix.3.dylib $(ROOT)/usr/lib/libpcre2-posix.dylib
+	install -m 644 $(S)/src/pcre2.h $(S)/src/pcre2posix.h $(ROOT)/usr/local/include/
+
+.PHONY: all install

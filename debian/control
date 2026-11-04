@@ -1,0 +1,25 @@
+Source: pcre2
+Section: libs
+Priority: optional
+Maintainer: Maxwell <maxwell@blueberrypieos.com>
+Build-Depends: pietoolchain (>= 0.1.0)
+Standards-Version: 4.7.3
+Homepage: https://github.com/apple-oss-distributions/pcre
+Vcs-Git: https://github.com/blueberrypieos/pcre.git -b blueberry-pie-os/latest
+Vcs-Browser: https://github.com/blueberrypieos/pcre
+Rules-Requires-Root: no
+
+Package: pcre2
+Architecture: darwin-arm64
+Depends: libsystem
+Description: Perl-compatible regular expressions
+ PCRE2 10.42's 8-bit and POSIX libraries, with Unicode support.
+
+Package: pcre2-dev
+Section: libdevel
+Priority: optional
+Architecture: darwin-arm64
+Depends: pcre2 (= ${binary:Version})
+Description: Perl-compatible regular expressions: development files
+ Headers for building against PCRE2's 8-bit and POSIX libraries.
+ The link-time library links are provided by pcre2.
