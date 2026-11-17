@@ -15,13 +15,15 @@ FLAGS   := $(BASE_CFLAGS) -fvisibility=hidden -DHAVE_CONFIG_H -DPCRE2_CODE_UNIT_
 	-I$(SRCROOT)/debian -I$(S)/src
 LIBPCRE2 := $(OBJ)/libpcre2-8.0.dylib
 LIBPOSIX := $(OBJ)/libpcre2-posix.3.dylib
+PATCHES  := $(sort $(wildcard $(SRCROOT)/debian/pcre2-patches/*.patch))
 
 all: $(LIBPCRE2) $(LIBPOSIX)
 
-$(S)/.unpacked: $(SRCROOT)/pcre2-10.42.tar.bz2
+$(S)/.unpacked: $(SRCROOT)/pcre2-10.42.tar.bz2 $(PATCHES)
 	rm -rf $(S)
 	mkdir -p $(OBJ)
 	tar -C $(OBJ) -jxf $(SRCROOT)/pcre2-10.42.tar.bz2
+	set -e; for p in $(PATCHES); do patch -s -p1 --fuzz=0 -d $(S) < $$p; done
 	cp $(S)/src/pcre2.h.generic $(S)/src/pcre2.h
 	cp $(S)/src/pcre2_chartables.c.dist $(S)/src/pcre2_chartables.c
 	touch $@

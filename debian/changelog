@@ -1,3 +1,11 @@
+pcre2 (21+ds1-3) blueberry-pie-os; urgency=medium
+
+  * pcre2_dfa_match no longer writes past a reused workspace block when
+    a pattern sets a low heap limit and recurses. This is upstream's fix
+    for GHSA-3r4p-g7gg-ppmf, CVE-2026-86145.
+
+ -- Maxwell <maxwell@blueberrypieos.com>  Tue, 17 Nov 2026 19:31:16 +0000
+
 pcre2 (21+ds1-2) blueberry-pie-os; urgency=medium
 
   * Build-Depend on pietoolchain-host and pietoolchain-sdk.

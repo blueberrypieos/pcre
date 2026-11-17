@@ -1,0 +1,118 @@
+Description: DFA matching checks the size of a reused workspace block
+ pcre2_dfa_match reused a cached workspace block for a recursive call
+ without checking its size. A pattern that sets a low heap limit and
+ recurses made the match write past the end of the block.
+ Such a match now fails with a heap limit error. The size of a new
+ block is also clamped to the heap limit without overflow.
+ This is upstream's backport to 10.42 of c932e70451ea, the fix for
+ GHSA-3r4p-g7gg-ppmf. The test data hunks add its regression test.
+Origin: upstream, https://github.com/PCRE2Project/pcre2/commit/26eb5f6712f2d2e6d3d012b273c53f7b4d420379
+Bug: https://github.com/PCRE2Project/pcre2/security/advisories/GHSA-3r4p-g7gg-ppmf
+Forwarded: not-needed
+Last-Update: 2026-11-17
+
+--- a/src/pcre2_dfa_match.c
++++ b/src/pcre2_dfa_match.c
+@@ -37,6 +37,8 @@
+ POSSIBILITY OF SUCH DAMAGE.
+ -----------------------------------------------------------------------------
+ */
++/* Modified 2026-11-17: DFA matching checks that a reused workspace block is
++large enough, from PCRE2's 26eb5f6712f2. */
+ 
+ 
+ /* This module contains the external function pcre2_dfa_match(), which is an
+@@ -397,8 +399,8 @@
+ 
+ /* This function is called when internal_dfa_match() is about to be called
+ recursively and there is insufficient working space left in the current
+-workspace block. If there's an existing next block, use it; otherwise get a new
+-block unless the heap limit is reached.
++workspace block. If there's a sufficiently large next block, use it; get a new
++block unless the heap limit is (or has been) reached.
+ 
+ Arguments:
+   rwsptr     pointer to block pointer (updated)
+@@ -414,9 +416,17 @@
+ {
+ RWS_anchor *rws = *rwsptr;
+ RWS_anchor *new;
++uint32_t requested;
++
++requested = RWS_RSIZE + ovecsize + RWS_ANCHOR_SIZE;
+ 
+ if (rws->next != NULL)
+   {
++  /* Although the initial block is large, and subsequent ones try to double, the
++  heap limit may cause the last one to be smaller; in this case, we have already
++  hit the heap limit and allocating a larger block will not be possible. */
++  if (rws->next->size < requested)
++    return PCRE2_ERROR_HEAPLIMIT;
+   new = rws->next;
+   }
+ 
+@@ -426,14 +436,30 @@
+ 
+ else
+   {
+-  uint32_t newsize = (rws->size >= UINT32_MAX/2)? UINT32_MAX/2 : rws->size * 2;
++  uint32_t newsize = (rws->size >= (UINT32_MAX/sizeof(int))/2)?
++    UINT32_MAX/sizeof(int) : rws->size * 2;
+   uint32_t newsizeK = newsize/(1024/sizeof(int));
+ 
+-  if (newsizeK + mb->heap_used > mb->heap_limit)
+-    newsizeK = (uint32_t)(mb->heap_limit - mb->heap_used);
+-  newsize = newsizeK*(1024/sizeof(int));
++  /* Clamp the allocation to the remaining heap allowance with care for overflows */
++
++  if (mb->heap_used >= mb->heap_limit)
++    {
++    newsize = 0;
++    newsizeK = 0;
++    }
++  else
++    {
++    PCRE2_SIZE availableK = mb->heap_limit - mb->heap_used;
++    /* newsize always capped at UINT32_MAX/sizeof(int), so newsizeK also capped;
++    and - if availableK is smaller - then multiplication to form newsize is safe */
++    if (newsizeK > availableK)
++      {
++      newsize = (uint32_t)(availableK*(1024/sizeof(int)));
++      newsizeK = availableK;
++      }
++    }
+ 
+-  if (newsize < RWS_RSIZE + ovecsize + RWS_ANCHOR_SIZE)
++  if (newsize < requested)
+     return PCRE2_ERROR_HEAPLIMIT;
+   new = mb->memctl.malloc(newsize*sizeof(int), mb->memctl.memory_data);
+   if (new == NULL) return PCRE2_ERROR_NOMEMORY;
+--- a/testdata/testinput6
++++ b/testdata/testinput6
+@@ -5026,4 +5026,11 @@
+ /c*+/
+     ab\=ph,offset=2
+ 
++# --------------
++
++# Test workspace resizing and workspace re-use
++
++/(*LIMIT_HEAP=4)(?=(?=(?=(?=(?=(?=(?=(?=a))(?R)))))))./
++    a\=dfa
++
+ # End of testinput6
+--- a/testdata/testoutput6
++++ b/testdata/testoutput6
+@@ -7895,4 +7895,12 @@
+     ab\=ph,offset=2
+ Partial match: 
+ 
++# --------------
++
++# Test workspace resizing and workspace re-use
++
++/(*LIMIT_HEAP=4)(?=(?=(?=(?=(?=(?=(?=(?=a))(?R)))))))./
++    a\=dfa
++Failed: error -63: heap limit exceeded
++
+ # End of testinput6

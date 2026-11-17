@@ -22,6 +22,11 @@ Files: debian/*
 Copyright: 2026 The Blueberry Pie OS Authors
 License: BSD-2-Clause
 
+Files: debian/pcre2-patches/*
+Copyright: 1997-2012, 2016-2022 University of Cambridge
+ 2026 The Blueberry Pie OS Authors
+License: LicenseRef-BSD-3-Clause-Cambridge AND public-domain
+
 License: BSD-2-Clause
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are
