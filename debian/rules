@@ -39,10 +39,10 @@ $(LIBPOSIX): $(OBJ)/o/pcre2posix.o $(LIBPCRE2)
 		-compatibility_version 4 -current_version 4.4 $(OBJ)/o/pcre2posix.o $(LIBPCRE2) -o $@
 
 install: all
-	install -d $(ROOT)/usr/lib $(ROOT)/usr/local/include
+	install -d $(ROOT)/usr/lib $(ROOT)/usr/include
 	install -m 755 $(LIBPCRE2) $(LIBPOSIX) $(ROOT)/usr/lib/
 	ln -sf libpcre2-8.0.dylib $(ROOT)/usr/lib/libpcre2-8.dylib
 	ln -sf libpcre2-posix.3.dylib $(ROOT)/usr/lib/libpcre2-posix.dylib
-	install -m 644 $(S)/src/pcre2.h $(S)/src/pcre2posix.h $(ROOT)/usr/local/include/
+	install -m 644 $(S)/src/pcre2.h $(S)/src/pcre2posix.h $(ROOT)/usr/include/
 
 .PHONY: all install
